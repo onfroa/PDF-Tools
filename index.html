@@ -597,6 +597,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .mobile-reorder{display:none;margin-top:9px;gap:8px;}
   .mobile-reorder-btn{display:flex;flex:1;min-height:42px;padding:0 10px;border:1px solid var(--border-light);border-radius:10px;background:var(--card);color:var(--text);align-items:center;justify-content:center;font-size:13px;font-weight:600;line-height:1;}
   .mobile-reorder-btn:disabled{opacity:.3;}
+  .mobile-drag-handle{display:flex;min-width:72px;min-height:42px;padding:0 10px;border:1px solid var(--border-light);border-radius:10px;background:var(--card);color:var(--text-dim);align-items:center;justify-content:center;font-size:13px;font-weight:600;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;}
+  .thumb.touch-target{outline:2px solid var(--red);outline-offset:2px;}
   .thumb-download{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.65);color:var(--text-dim);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .15s,background .15s,color .15s;}
   .thumb:hover .thumb-download{opacity:1;}
   .thumb-download:hover{background:var(--red);color:#fff;}
@@ -617,6 +619,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .empty-state svg{width:44px;height:44px;margin-bottom:14px;color:var(--text-faint);}
   .empty-state p{margin:0;font-size:14px;color:var(--text-dim);}
   .empty-state span{font-size:12px;margin-top:6px;color:var(--text-faint);}
+  .field-help{display:block;margin-top:8px;color:var(--text-faint);font-size:11px;line-height:1.45;}
 
   input[type=file]{display:none;}
 
@@ -711,6 +714,12 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     #view-image-to-pdf .thumb{cursor:default;}
     #view-image-to-pdf .thumb-remove{opacity:1;}
     #view-image-to-pdf .mobile-reorder{display:flex;}
+    #view-image-to-pdf .grid{grid-template-columns:1fr;gap:12px;}
+    #view-image-to-pdf .thumb{display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-rows:auto auto;column-gap:12px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--card);}
+    #view-image-to-pdf .thumb-frame{grid-column:1;grid-row:1;width:104px;min-height:132px;}
+    #view-image-to-pdf .thumb-name{grid-column:2;grid-row:1;margin:8px 30px 0 0;text-align:left;align-self:center;}
+    #view-image-to-pdf .mobile-reorder{grid-column:1 / 3;grid-row:2;align-self:end;}
+    #view-image-to-pdf .add-tile{aspect-ratio:auto;min-height:64px;}
   }
   @media (prefers-reduced-motion:reduce){
     .home-card,.home-card::before,.home-card::after,.home-icon,.home-card h3{transition:none;}
@@ -1002,6 +1011,16 @@ https://github.com/nodeca/pako/blob/main/LICENSE
         <option value="a3">A3 (420x297 mm)</option>
         <option value="fit">Fit to image</option>
       </select>
+    </div>
+
+    <div class="field">
+      <span class="field-label">Page fitting</span>
+      <select id="i_fitMode">
+        <option value="original">Original size (no crop)</option>
+        <option value="contain">Fit inside (show whole image)</option>
+        <option value="fill">Fill page (no borders)</option>
+      </select>
+      <span class="field-help" id="i_fitHelp">Preserves every image completely. Page sizes may differ when using Fit to image.</span>
     </div>
 
     <div class="field">
@@ -2132,6 +2151,29 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
   var convertBtn = document.getElementById('i_convertBtn');
   var statusMsg = document.getElementById('i_statusMsg');
   var mergeCheck = document.getElementById('i_mergeCheck');
+  var fitModeSelect = document.getElementById('i_fitMode');
+  var fitHelp = document.getElementById('i_fitHelp');
+
+  function updateFitHelp(){
+    var messages = {
+      original: 'Preserves every image completely. Page sizes may differ when using Fit to image.',
+      contain: 'Keeps every image visible on matching pages. White space may appear.',
+      fill: 'Uses matching edge-to-edge pages. Some image edges may be cropped.'
+    };
+    fitHelp.textContent = messages[fitModeSelect.value] || messages.original;
+  }
+
+  try {
+    var savedFitMode = localStorage.getItem('pdfTools.imageFitMode');
+    if (savedFitMode === 'original' || savedFitMode === 'contain' || savedFitMode === 'fill'){
+      fitModeSelect.value = savedFitMode;
+    }
+  } catch (storageError){}
+  updateFitHelp();
+  fitModeSelect.addEventListener('change', function(){
+    updateFitHelp();
+    try { localStorage.setItem('pdfTools.imageFitMode', fitModeSelect.value); } catch (storageError){}
+  });
 
   emptyState.addEventListener('click', function(){ fileInput.click(); });
 
@@ -2188,6 +2230,46 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     render();
   }
 
+  function beginTouchReorder(event, sourceId){
+    event.preventDefault();
+    event.stopPropagation();
+    var targetId = sourceId;
+
+    function clearTargets(){
+      Array.prototype.forEach.call(grid.querySelectorAll('.thumb.touch-target'), function(el){
+        el.classList.remove('touch-target');
+      });
+    }
+
+    function onPointerMove(moveEvent){
+      moveEvent.preventDefault();
+      var element = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+      var target = element && element.closest ? element.closest('#i_grid .thumb') : null;
+      if (!target || !target.dataset.id) return;
+      targetId = target.dataset.id;
+      clearTargets();
+      target.classList.add('touch-target');
+    }
+
+    function onPointerEnd(){
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerEnd);
+      document.removeEventListener('pointercancel', onPointerEnd);
+      clearTargets();
+      if (targetId === sourceId) return;
+      var sourceIndex = files.findIndex(function(f){ return f.id === sourceId; });
+      var targetIndex = files.findIndex(function(f){ return f.id === targetId; });
+      if (sourceIndex < 0 || targetIndex < 0) return;
+      var moved = files.splice(sourceIndex, 1)[0];
+      files.splice(Math.min(targetIndex, files.length), 0, moved);
+      render();
+    }
+
+    document.addEventListener('pointermove', onPointerMove, { passive: false });
+    document.addEventListener('pointerup', onPointerEnd);
+    document.addEventListener('pointercancel', onPointerEnd);
+  }
+
   function render(){
     countPill.textContent = files.length + (files.length === 1 ? ' file' : ' files');
     convertBtn.disabled = files.length === 0;
@@ -2234,11 +2316,20 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
       var mobileReorder = document.createElement('div');
       mobileReorder.className = 'mobile-reorder';
 
+      var dragHandle = document.createElement('button');
+      dragHandle.type = 'button';
+      dragHandle.className = 'mobile-drag-handle';
+      dragHandle.setAttribute('aria-label', 'Drag to reorder image');
+      dragHandle.textContent = '☰ Drag';
+      dragHandle.addEventListener('pointerdown', function(e){
+        beginTouchReorder(e, f.id);
+      });
+
       var moveBackBtn = document.createElement('button');
       moveBackBtn.type = 'button';
       moveBackBtn.className = 'mobile-reorder-btn';
       moveBackBtn.setAttribute('aria-label', 'Move image earlier');
-      moveBackBtn.textContent = '← Earlier';
+      moveBackBtn.textContent = '↑ Up';
       moveBackBtn.disabled = idx === 0;
       moveBackBtn.addEventListener('click', function(e){
         e.stopPropagation();
@@ -2249,13 +2340,14 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
       moveForwardBtn.type = 'button';
       moveForwardBtn.className = 'mobile-reorder-btn';
       moveForwardBtn.setAttribute('aria-label', 'Move image later');
-      moveForwardBtn.textContent = 'Later →';
+      moveForwardBtn.textContent = '↓ Down';
       moveForwardBtn.disabled = idx === files.length - 1;
       moveForwardBtn.addEventListener('click', function(e){
         e.stopPropagation();
         moveFile(f.id, 1);
       });
 
+      mobileReorder.appendChild(dragHandle);
       mobileReorder.appendChild(moveBackBtn);
       mobileReorder.appendChild(moveForwardBtn);
 
@@ -2360,6 +2452,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     try {
       var jsPDFCtor = window.jspdf.jsPDF;
       var pageSizeKey = document.getElementById('i_pageSize').value;
+      var fitMode = fitModeSelect.value;
       var merge = mergeCheck.checked;
       var qualityMode = document.getElementById('i_qualitySelect').value;
       var compressionSettings = {
@@ -2387,18 +2480,29 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 
           var pageWmm, pageHmm;
           if (pageSizeKey === 'fit'){
-            if (lockedW === null){
-              var firstRatio = dims.w / dims.h;
-              if (firstRatio <= 1){
-                lockedH = 297;
-                lockedW = lockedH * firstRatio;
+            if (fitMode === 'original'){
+              var imagePageRatio = dims.w / dims.h;
+              if (imagePageRatio <= 1){
+                pageHmm = 297;
+                pageWmm = pageHmm * imagePageRatio;
               } else {
-                lockedW = 297;
-                lockedH = lockedW / firstRatio;
+                pageWmm = 297;
+                pageHmm = pageWmm / imagePageRatio;
               }
+            } else {
+              if (lockedW === null){
+                var firstRatio = dims.w / dims.h;
+                if (firstRatio <= 1){
+                  lockedH = 297;
+                  lockedW = lockedH * firstRatio;
+                } else {
+                  lockedW = 297;
+                  lockedH = lockedW / firstRatio;
+                }
+              }
+              pageWmm = lockedW;
+              pageHmm = lockedH;
             }
-            pageWmm = lockedW;
-            pageHmm = lockedH;
           } else {
             var base = getPageDims(pageSizeKey);
             var minS = Math.min.apply(null, base), maxS = Math.max.apply(null, base);
@@ -2418,7 +2522,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
             pdf.addPage([pageWmm, pageHmm], pageOrient);
           }
 
-          placeImage(pdf, srcUrl, imgType, dims, pageWmm, pageHmm, margin, pageSizeKey === 'fit');
+          placeImage(pdf, srcUrl, imgType, dims, pageWmm, pageHmm, margin, fitMode);
         }
         pdf.save('converted.pdf');
       } else {
@@ -2453,7 +2557,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 
           var singlePageOrient = pW <= pH ? 'portrait' : 'landscape';
           var singlePdf = new jsPDFCtor({ orientation: singlePageOrient, unit: 'mm', format: [pW, pH] });
-          placeImage(singlePdf, srcUrl2, it, d, pW, pH, margin, pageSizeKey === 'fit');
+          placeImage(singlePdf, srcUrl2, it, d, pW, pH, margin, fitMode);
           var outName = ff.name.replace(/\.[^.]+$/, '') + '.pdf';
           singlePdf.save(outName);
         }
@@ -2470,35 +2574,29 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     }
   });
 
-  function placeImage(pdf, dataUrl, type, dims, pageWmm, pageHmm, marginPt, fitToImage){
-    if (fitToImage && marginPt === 0){
-      var imageRatio = dims.w / dims.h;
-      var pageRatio = pageWmm / pageHmm;
-      var fillW, fillH, fillX = 0, fillY = 0;
-      if (imageRatio > pageRatio){
-        fillH = pageHmm;
-        fillW = fillH * imageRatio;
-        fillX = (pageWmm - fillW) / 2;
-      } else {
-        fillW = pageWmm;
-        fillH = fillW / imageRatio;
-        fillY = (pageHmm - fillH) / 2;
-      }
-      pdf.addImage(dataUrl, type, fillX, fillY, fillW, fillH);
-      return;
-    }
+  function placeImage(pdf, dataUrl, type, dims, pageWmm, pageHmm, marginPt, fitMode){
     var marginMm = marginPt * 0.264583 * 0.5;
     var availW = pageWmm - marginMm * 2;
     var availH = pageHmm - marginMm * 2;
     var imgRatio = dims.w / dims.h;
     var boxRatio = availW / availH;
     var drawW, drawH;
-    if (imgRatio > boxRatio){
-      drawW = availW;
-      drawH = availW / imgRatio;
+    if (fitMode === 'fill'){
+      if (imgRatio > boxRatio){
+        drawH = availH;
+        drawW = drawH * imgRatio;
+      } else {
+        drawW = availW;
+        drawH = drawW / imgRatio;
+      }
     } else {
-      drawH = availH;
-      drawW = availH * imgRatio;
+      if (imgRatio > boxRatio){
+        drawW = availW;
+        drawH = availW / imgRatio;
+      } else {
+        drawH = availH;
+        drawW = availH * imgRatio;
+      }
     }
     var x = (pageWmm - drawW) / 2;
     var y = (pageHmm - drawH) / 2;
