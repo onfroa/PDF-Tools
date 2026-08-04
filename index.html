@@ -594,6 +594,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .thumb:hover .thumb-remove{opacity:1;}
   .thumb-remove:hover{background:var(--red);color:#fff;}
   .thumb-remove svg{width:13px;height:13px;}
+  .mobile-reorder{display:none;position:absolute;left:50%;bottom:8px;transform:translateX(-50%);gap:8px;z-index:3;}
+  .mobile-reorder-btn{width:38px;height:38px;border:1px solid rgba(255,255,255,.18);border-radius:12px;background:rgba(10,10,12,.82);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;line-height:1;box-shadow:0 5px 14px rgba(0,0,0,.28);}
+  .mobile-reorder-btn:disabled{opacity:.3;}
   .thumb-download{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.65);color:var(--text-dim);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .15s,background .15s,color .15s;}
   .thumb:hover .thumb-download{opacity:1;}
   .thumb-download:hover{background:var(--red);color:#fff;}
@@ -705,6 +708,9 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       backdrop-filter:blur(8px);
       transform:translateX(-50%);
     }
+    #view-image-to-pdf .thumb{cursor:default;}
+    #view-image-to-pdf .thumb-remove{opacity:1;}
+    #view-image-to-pdf .mobile-reorder{display:flex;}
   }
   @media (prefers-reduced-motion:reduce){
     .home-card,.home-card::before,.home-card::after,.home-icon,.home-card h3{transition:none;}
@@ -2173,6 +2179,15 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     render();
   }
 
+  function moveFile(id, direction){
+    var index = files.findIndex(function(f){ return f.id === id; });
+    var nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= files.length) return;
+    var moved = files.splice(index, 1)[0];
+    files.splice(nextIndex, 0, moved);
+    render();
+  }
+
   function render(){
     countPill.textContent = files.length + (files.length === 1 ? ' file' : ' files');
     convertBtn.disabled = files.length === 0;
@@ -2215,6 +2230,35 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
       var img = document.createElement('img');
       img.src = f.dataUrl;
       frame.appendChild(img);
+
+      var mobileReorder = document.createElement('div');
+      mobileReorder.className = 'mobile-reorder';
+
+      var moveBackBtn = document.createElement('button');
+      moveBackBtn.type = 'button';
+      moveBackBtn.className = 'mobile-reorder-btn';
+      moveBackBtn.setAttribute('aria-label', 'Move image earlier');
+      moveBackBtn.textContent = '←';
+      moveBackBtn.disabled = idx === 0;
+      moveBackBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        moveFile(f.id, -1);
+      });
+
+      var moveForwardBtn = document.createElement('button');
+      moveForwardBtn.type = 'button';
+      moveForwardBtn.className = 'mobile-reorder-btn';
+      moveForwardBtn.setAttribute('aria-label', 'Move image later');
+      moveForwardBtn.textContent = '→';
+      moveForwardBtn.disabled = idx === files.length - 1;
+      moveForwardBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        moveFile(f.id, 1);
+      });
+
+      mobileReorder.appendChild(moveBackBtn);
+      mobileReorder.appendChild(moveForwardBtn);
+      frame.appendChild(mobileReorder);
 
       var order = document.createElement('div');
       order.className = 'thumb-order';
@@ -2326,6 +2370,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 
       if (merge){
         var pdf = null;
+        var lockedW = null, lockedH = null;
 
         for (var i = 0; i < files.length; i++){
           var f = files[i];
@@ -2342,9 +2387,13 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 
           var pageWmm, pageHmm;
           if (pageSizeKey === 'fit'){
-            var pxToMm = 0.264583;
-            pageWmm = dims.w * pxToMm;
-            pageHmm = dims.h * pxToMm;
+            if (lockedW === null){
+              var pxToMm = 0.264583;
+              lockedW = dims.w * pxToMm;
+              lockedH = dims.h * pxToMm;
+            }
+            pageWmm = lockedW;
+            pageHmm = lockedH;
           } else {
             var base = getPageDims(pageSizeKey);
             var minS = Math.min.apply(null, base), maxS = Math.max.apply(null, base);
@@ -2413,7 +2462,19 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 
   function placeImage(pdf, dataUrl, type, dims, pageWmm, pageHmm, marginPt, fitToImage){
     if (fitToImage && marginPt === 0){
-      pdf.addImage(dataUrl, type, 0, 0, pageWmm, pageHmm);
+      var imageRatio = dims.w / dims.h;
+      var pageRatio = pageWmm / pageHmm;
+      var fillW, fillH, fillX = 0, fillY = 0;
+      if (imageRatio > pageRatio){
+        fillH = pageHmm;
+        fillW = fillH * imageRatio;
+        fillX = (pageWmm - fillW) / 2;
+      } else {
+        fillW = pageWmm;
+        fillH = fillW / imageRatio;
+        fillY = (pageHmm - fillH) / 2;
+      }
+      pdf.addImage(dataUrl, type, fillX, fillY, fillW, fillH);
       return;
     }
     var marginMm = marginPt * 0.264583 * 0.5;
