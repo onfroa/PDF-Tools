@@ -1051,6 +1051,77 @@ var __workerBlob = new Blob([__workerSrc], {type: 'application/javascript'});
 window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob);
 </script>
 
+<script>
+(function(){
+  'use strict';
+
+  var MAX_PDF_BYTES = 100 * 1024 * 1024;
+  var MAX_IMAGE_BYTES = 25 * 1024 * 1024;
+  var MAX_BATCH_BYTES = 250 * 1024 * 1024;
+  var MAX_FILES = 100;
+  var noticeTimer = null;
+
+  function showFileNotice(message){
+    var notice = document.getElementById('fileSecurityNotice');
+    if (!notice){
+      notice = document.createElement('div');
+      notice.id = 'fileSecurityNotice';
+      notice.setAttribute('role', 'alert');
+      notice.style.cssText = 'position:fixed;left:50%;bottom:24px;z-index:10000;max-width:min(90vw,560px);padding:13px 18px;border:1px solid #ef4b50;border-radius:12px;background:#281b1d;color:#fff;font:600 14px/1.4 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;box-shadow:0 14px 40px rgba(0,0,0,.38);transform:translateX(-50%);text-align:center;';
+      document.body.appendChild(notice);
+    }
+    notice.textContent = message;
+    notice.hidden = false;
+    clearTimeout(noticeTimer);
+    noticeTimer = setTimeout(function(){ notice.hidden = true; }, 5000);
+  }
+
+  function validateFiles(fileList){
+    var files = Array.prototype.slice.call(fileList || []);
+    if (!files.length) return null;
+    if (files.length > MAX_FILES){
+      return 'Please choose no more than ' + MAX_FILES + ' files at once.';
+    }
+
+    var total = 0;
+    for (var i = 0; i < files.length; i++){
+      var file = files[i];
+      var isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
+      var limit = isPdf ? MAX_PDF_BYTES : MAX_IMAGE_BYTES;
+      total += file.size || 0;
+      if ((file.size || 0) > limit){
+        return (isPdf ? 'PDFs' : 'Images') + ' must be ' + (limit / 1024 / 1024) + ' MB or smaller.';
+      }
+    }
+    if (total > MAX_BATCH_BYTES){
+      return 'That selection is too large. Please keep each batch under 250 MB.';
+    }
+    return null;
+  }
+
+  function blockUnsafeFiles(event, fileList, input){
+    var message = validateFiles(fileList);
+    if (!message) return false;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    if (input) input.value = '';
+    showFileNotice(message);
+    return true;
+  }
+
+  document.addEventListener('change', function(event){
+    var input = event.target;
+    if (!input || input.tagName !== 'INPUT' || input.type !== 'file') return;
+    blockUnsafeFiles(event, input.files, input);
+  }, true);
+
+  document.addEventListener('drop', function(event){
+    if (!event.dataTransfer || !event.dataTransfer.files.length) return;
+    blockUnsafeFiles(event, event.dataTransfer.files, null);
+  }, true);
+})();
+</script>
+
 <script>var __root = document.getElementById('view-merge-pdf');
 
 (function(){
@@ -1119,7 +1190,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
       entry.libBytes = bytesForLib;
 
       var bytesForJs = bytesForLib.slice();
-      var jsDoc = await pdfjsLib.getDocument({ data: bytesForJs }).promise;
+      var jsDoc = await pdfjsLib.getDocument({ data: bytesForJs, isEvalSupported: false }).promise;
       var page = await jsDoc.getPage(1);
       var viewport = page.getViewport({ scale: 1 });
       var targetW = 300;
@@ -1311,7 +1382,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
       var bytes = await readFileBytes(file);
       libBytesTemplate = bytes;
       libDoc = await PDFLibNS.PDFDocument.load(bytes.slice(), { ignoreEncryption: true });
-      jsDoc = await pdfjsLib.getDocument({ data: bytes.slice() }).promise;
+      jsDoc = await pdfjsLib.getDocument({ data: bytes.slice(), isEvalSupported: false }).promise;
       var count = libDoc.getPageCount();
       pages = [];
       for (var i = 0; i < count; i++){
@@ -1523,7 +1594,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     baseName = file.name.replace(/\.pdf$/i, '');
     try {
       var bytes = await readFileBytes(file);
-      jsDoc = await pdfjsLib.getDocument({ data: bytes }).promise;
+      jsDoc = await pdfjsLib.getDocument({ data: bytes, isEvalSupported: false }).promise;
       var count = jsDoc.numPages;
       pages = [];
       for (var i = 0; i < count; i++){
@@ -1767,7 +1838,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
   async function registerSource(file){
     var copies = await fileToTwoCopies(file);
     var libDoc = await PDFLibNS.PDFDocument.load(copies.forLib, { ignoreEncryption: true });
-    var jsDoc = await pdfjsLib.getDocument({ data: copies.forJs }).promise;
+    var jsDoc = await pdfjsLib.getDocument({ data: copies.forJs, isEvalSupported: false }).promise;
     var id = 'src' + (sourceCounter++);
     sources[id] = { libDoc: libDoc, jsDoc: jsDoc, name: file.name };
     return id;
