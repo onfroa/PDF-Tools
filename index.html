@@ -2326,7 +2326,6 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 
       if (merge){
         var pdf = null;
-        var lockedW = null, lockedH = null;
 
         for (var i = 0; i < files.length; i++){
           var f = files[i];
@@ -2343,16 +2342,9 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 
           var pageWmm, pageHmm;
           if (pageSizeKey === 'fit'){
-            if (lockedW === null){
-              var pxToMm = 0.264583;
-              lockedW = dims.w * pxToMm;
-              lockedH = dims.h * pxToMm;
-              if (orientation === 'landscape' && lockedH > lockedW){
-                var t0 = lockedW; lockedW = lockedH; lockedH = t0;
-              }
-            }
-            pageWmm = lockedW;
-            pageHmm = lockedH;
+            var pxToMm = 0.264583;
+            pageWmm = dims.w * pxToMm;
+            pageHmm = dims.h * pxToMm;
           } else {
             var base = getPageDims(pageSizeKey);
             var minS = Math.min.apply(null, base), maxS = Math.max.apply(null, base);
@@ -2372,7 +2364,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
             pdf.addPage([pageWmm, pageHmm], pageOrient);
           }
 
-          placeImage(pdf, srcUrl, imgType, dims, pageWmm, pageHmm, margin);
+          placeImage(pdf, srcUrl, imgType, dims, pageWmm, pageHmm, margin, pageSizeKey === 'fit');
         }
         pdf.save('converted.pdf');
       } else {
@@ -2394,7 +2386,6 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
             var px2mm = 0.264583;
             pW = d.w * px2mm;
             pH = d.h * px2mm;
-            if (orientation === 'landscape' && pH > pW){ var tt = pW; pW = pH; pH = tt; }
           } else {
             var b = getPageDims(pageSizeKey);
             var mn = Math.min.apply(null, b), mx = Math.max.apply(null, b);
@@ -2403,7 +2394,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 
           var singlePageOrient = pW <= pH ? 'portrait' : 'landscape';
           var singlePdf = new jsPDFCtor({ orientation: singlePageOrient, unit: 'mm', format: [pW, pH] });
-          placeImage(singlePdf, srcUrl2, it, d, pW, pH, margin);
+          placeImage(singlePdf, srcUrl2, it, d, pW, pH, margin, pageSizeKey === 'fit');
           var outName = ff.name.replace(/\.[^.]+$/, '') + '.pdf';
           singlePdf.save(outName);
         }
@@ -2420,7 +2411,11 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     }
   });
 
-  function placeImage(pdf, dataUrl, type, dims, pageWmm, pageHmm, marginPt){
+  function placeImage(pdf, dataUrl, type, dims, pageWmm, pageHmm, marginPt, fitToImage){
+    if (fitToImage && marginPt === 0){
+      pdf.addImage(dataUrl, type, 0, 0, pageWmm, pageHmm);
+      return;
+    }
     var marginMm = marginPt * 0.264583 * 0.5;
     var availW = pageWmm - marginMm * 2;
     var availH = pageHmm - marginMm * 2;
