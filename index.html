@@ -619,6 +619,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .empty-state svg{width:44px;height:44px;margin-bottom:14px;color:var(--text-faint);}
   .empty-state p{margin:0;font-size:14px;color:var(--text-dim);}
   .empty-state span{font-size:12px;margin-top:6px;color:var(--text-faint);}
+  .empty-action{margin-top:16px;padding:10px 16px;border:1px solid var(--border-light);border-radius:10px;background:var(--card);color:var(--text);font:600 13px/1 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;cursor:pointer;}
+  .empty-action:hover{border-color:var(--red);color:var(--red);}
   .field-help{display:block;margin-top:8px;color:var(--text-faint);font-size:11px;line-height:1.45;}
 
   input[type=file]{display:none;}
@@ -720,6 +722,13 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     #view-image-to-pdf .thumb-name{grid-column:2;grid-row:1;margin:8px 30px 0 0;text-align:left;align-self:center;}
     #view-image-to-pdf .mobile-reorder{grid-column:1 / 3;grid-row:2;align-self:end;}
     #view-image-to-pdf .add-tile{aspect-ratio:auto;min-height:64px;}
+    #view-edit-pdf .grid{grid-template-columns:1fr;gap:12px;}
+    #view-edit-pdf .thumb{display:grid;grid-template-columns:104px minmax(0,1fr);grid-template-rows:auto auto;column-gap:12px;padding:10px;border:1px solid var(--border);border-radius:12px;background:var(--card);cursor:default;}
+    #view-edit-pdf .thumb-frame{grid-column:1;grid-row:1;width:104px;min-height:132px;}
+    #view-edit-pdf .thumb-page-label{grid-column:2;grid-row:1;margin:8px 62px 0 0;text-align:left;align-self:center;}
+    #view-edit-pdf .thumb-actions{opacity:1;}
+    #view-edit-pdf .mobile-reorder{display:flex;grid-column:1 / 3;grid-row:2;align-self:end;}
+    #view-edit-pdf .add-tile{aspect-ratio:auto;min-height:64px;}
   }
   @media (prefers-reduced-motion:reduce){
     .home-card,.home-card::before,.home-card::after,.home-icon,.home-card h3{transition:none;}
@@ -924,6 +933,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/></svg>
       <p>Drop a PDF here or click to open it</p>
       <span>Delete, reorder, rotate, or add pages, then save</span>
+      <button type="button" class="empty-action" id="e_startBlankBtn">Start with a blank page</button>
     </div>
 
     <div id="e_grid" class="grid" style="display:none;"></div>
@@ -1768,6 +1778,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 <script>var __root = document.getElementById('view-edit-pdf');
 
 (function(){
+  var root = document.getElementById('view-edit-pdf');
   var PDFLibNS = window.PDFLib;
   var pdfjsLib = window.pdfjsLib;
 
@@ -1784,10 +1795,15 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
   var countPill = document.getElementById('e_countPill');
   var saveBtn = document.getElementById('e_saveBtn');
   var statusMsg = document.getElementById('e_statusMsg');
+  var startBlankBtn = document.getElementById('e_startBlankBtn');
   var insertPdfBtn = document.getElementById('e_insertPdfBtn');
   var startOverBtn = document.getElementById('e_startOverBtn');
 
   emptyState.addEventListener('click', function(){ fileInput.click(); });
+  startBlankBtn.addEventListener('click', function(e){
+    e.stopPropagation();
+    startBlankDocument();
+  });
 
   fileInput.addEventListener('change', function(e){
     if (e.target.files.length){
@@ -1806,9 +1822,9 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
   });
 
   ['dragover','dragenter'].forEach(function(evt){
-    __root.addEventListener(evt, function(e){ e.preventDefault(); });
+    root.addEventListener(evt, function(e){ e.preventDefault(); });
   });
-  __root.addEventListener('drop', function(e){
+  root.addEventListener('drop', function(e){
     e.preventDefault();
     if (!e.dataTransfer || !e.dataTransfer.files.length) return;
     var f = e.dataTransfer.files[0];
@@ -1942,6 +1958,55 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     render();
   }
 
+  function moveItem(id, direction){
+    var index = pageItems.findIndex(function(it){ return it.id === id; });
+    var nextIndex = index + direction;
+    if (index < 0 || nextIndex < 0 || nextIndex >= pageItems.length) return;
+    var moved = pageItems.splice(index, 1)[0];
+    pageItems.splice(nextIndex, 0, moved);
+    render();
+  }
+
+  function beginTouchPageReorder(event, sourceId){
+    event.preventDefault();
+    event.stopPropagation();
+    var targetId = sourceId;
+
+    function clearTargets(){
+      Array.prototype.forEach.call(grid.querySelectorAll('.thumb.touch-target'), function(el){
+        el.classList.remove('touch-target');
+      });
+    }
+
+    function onPointerMove(moveEvent){
+      moveEvent.preventDefault();
+      var element = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
+      var target = element && element.closest ? element.closest('#e_grid .thumb') : null;
+      if (!target || !target.dataset.id) return;
+      targetId = target.dataset.id;
+      clearTargets();
+      target.classList.add('touch-target');
+    }
+
+    function onPointerEnd(){
+      document.removeEventListener('pointermove', onPointerMove);
+      document.removeEventListener('pointerup', onPointerEnd);
+      document.removeEventListener('pointercancel', onPointerEnd);
+      clearTargets();
+      if (targetId === sourceId) return;
+      var sourceIndex = pageItems.findIndex(function(it){ return it.id === sourceId; });
+      var targetIndex = pageItems.findIndex(function(it){ return it.id === targetId; });
+      if (sourceIndex < 0 || targetIndex < 0) return;
+      var moved = pageItems.splice(sourceIndex, 1)[0];
+      pageItems.splice(Math.min(targetIndex, pageItems.length), 0, moved);
+      render();
+    }
+
+    document.addEventListener('pointermove', onPointerMove, { passive: false });
+    document.addEventListener('pointerup', onPointerEnd);
+    document.addEventListener('pointercancel', onPointerEnd);
+  }
+
   function render(){
     var hasPages = pageItems.length > 0;
     countPill.textContent = hasPages ? (pageItems.length + (pageItems.length === 1 ? ' page' : ' pages')) : 'No PDF loaded';
@@ -2015,10 +2080,49 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
       label.className = 'thumb-page-label';
       label.textContent = 'Page ' + (idx + 1);
 
+      var mobileReorder = document.createElement('div');
+      mobileReorder.className = 'mobile-reorder';
+
+      var dragHandle = document.createElement('button');
+      dragHandle.type = 'button';
+      dragHandle.className = 'mobile-drag-handle';
+      dragHandle.setAttribute('aria-label', 'Drag to reorder page');
+      dragHandle.textContent = '☰ Drag';
+      dragHandle.addEventListener('pointerdown', function(e){
+        beginTouchPageReorder(e, it.id);
+      });
+
+      var moveUpBtn = document.createElement('button');
+      moveUpBtn.type = 'button';
+      moveUpBtn.className = 'mobile-reorder-btn';
+      moveUpBtn.setAttribute('aria-label', 'Move page up');
+      moveUpBtn.textContent = '↑ Up';
+      moveUpBtn.disabled = idx === 0;
+      moveUpBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        moveItem(it.id, -1);
+      });
+
+      var moveDownBtn = document.createElement('button');
+      moveDownBtn.type = 'button';
+      moveDownBtn.className = 'mobile-reorder-btn';
+      moveDownBtn.setAttribute('aria-label', 'Move page down');
+      moveDownBtn.textContent = '↓ Down';
+      moveDownBtn.disabled = idx === pageItems.length - 1;
+      moveDownBtn.addEventListener('click', function(e){
+        e.stopPropagation();
+        moveItem(it.id, 1);
+      });
+
+      mobileReorder.appendChild(dragHandle);
+      mobileReorder.appendChild(moveUpBtn);
+      mobileReorder.appendChild(moveDownBtn);
+
       thumb.appendChild(frame);
       thumb.appendChild(order);
       thumb.appendChild(actions);
       thumb.appendChild(label);
+      thumb.appendChild(mobileReorder);
       grid.appendChild(thumb);
     });
 
