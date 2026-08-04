@@ -597,7 +597,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   .mobile-reorder{display:none;margin-top:9px;gap:8px;}
   .mobile-reorder-btn{display:flex;flex:1;min-height:42px;padding:0 10px;border:1px solid var(--border-light);border-radius:10px;background:var(--card);color:var(--text);align-items:center;justify-content:center;font-size:13px;font-weight:600;line-height:1;}
   .mobile-reorder-btn:disabled{opacity:.3;}
-  .mobile-drag-handle{display:flex;min-width:72px;min-height:42px;padding:0 10px;border:1px solid var(--border-light);border-radius:10px;background:var(--card);color:var(--text-dim);align-items:center;justify-content:center;font-size:13px;font-weight:600;touch-action:none;user-select:none;-webkit-user-select:none;cursor:grab;}
   .thumb.touch-target{outline:2px solid var(--red);outline-offset:2px;}
   .thumb-download{position:absolute;top:6px;right:6px;width:24px;height:24px;border-radius:50%;background:rgba(0,0,0,.65);color:var(--text-dim);border:none;display:flex;align-items:center;justify-content:center;cursor:pointer;opacity:0;transition:opacity .15s,background .15s,color .15s;}
   .thumb:hover .thumb-download{opacity:1;}
@@ -1967,46 +1966,6 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     render();
   }
 
-  function beginTouchPageReorder(event, sourceId){
-    event.preventDefault();
-    event.stopPropagation();
-    var targetId = sourceId;
-
-    function clearTargets(){
-      Array.prototype.forEach.call(grid.querySelectorAll('.thumb.touch-target'), function(el){
-        el.classList.remove('touch-target');
-      });
-    }
-
-    function onPointerMove(moveEvent){
-      moveEvent.preventDefault();
-      var element = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
-      var target = element && element.closest ? element.closest('#e_grid .thumb') : null;
-      if (!target || !target.dataset.id) return;
-      targetId = target.dataset.id;
-      clearTargets();
-      target.classList.add('touch-target');
-    }
-
-    function onPointerEnd(){
-      document.removeEventListener('pointermove', onPointerMove);
-      document.removeEventListener('pointerup', onPointerEnd);
-      document.removeEventListener('pointercancel', onPointerEnd);
-      clearTargets();
-      if (targetId === sourceId) return;
-      var sourceIndex = pageItems.findIndex(function(it){ return it.id === sourceId; });
-      var targetIndex = pageItems.findIndex(function(it){ return it.id === targetId; });
-      if (sourceIndex < 0 || targetIndex < 0) return;
-      var moved = pageItems.splice(sourceIndex, 1)[0];
-      pageItems.splice(Math.min(targetIndex, pageItems.length), 0, moved);
-      render();
-    }
-
-    document.addEventListener('pointermove', onPointerMove, { passive: false });
-    document.addEventListener('pointerup', onPointerEnd);
-    document.addEventListener('pointercancel', onPointerEnd);
-  }
-
   function render(){
     var hasPages = pageItems.length > 0;
     countPill.textContent = hasPages ? (pageItems.length + (pageItems.length === 1 ? ' page' : ' pages')) : 'No PDF loaded';
@@ -2024,10 +1983,12 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     pageItems.forEach(function(it, idx){
       var thumb = document.createElement('div');
       thumb.className = 'thumb';
-      thumb.draggable = true;
+      var mobileDragLayout = window.matchMedia && window.matchMedia('(max-width: 860px)').matches;
+      thumb.draggable = !mobileDragLayout;
       thumb.dataset.id = it.id;
 
-      thumb.addEventListener('dragstart', function(){
+      thumb.addEventListener('dragstart', function(e){
+        if (!thumb.draggable){ e.preventDefault(); return; }
         dragSrcId = it.id;
         thumb.classList.add('dragging');
       });
@@ -2050,6 +2011,7 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
       if (it.thumb){
         var img = document.createElement('img');
         img.src = it.thumb;
+        img.draggable = false;
         img.style.transform = 'rotate(' + it.rotationDelta + 'deg)';
         frame.appendChild(img);
       }
@@ -2083,15 +2045,6 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
       var mobileReorder = document.createElement('div');
       mobileReorder.className = 'mobile-reorder';
 
-      var dragHandle = document.createElement('button');
-      dragHandle.type = 'button';
-      dragHandle.className = 'mobile-drag-handle';
-      dragHandle.setAttribute('aria-label', 'Drag to reorder page');
-      dragHandle.textContent = '☰ Drag';
-      dragHandle.addEventListener('pointerdown', function(e){
-        beginTouchPageReorder(e, it.id);
-      });
-
       var moveUpBtn = document.createElement('button');
       moveUpBtn.type = 'button';
       moveUpBtn.className = 'mobile-reorder-btn';
@@ -2114,7 +2067,6 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
         moveItem(it.id, 1);
       });
 
-      mobileReorder.appendChild(dragHandle);
       mobileReorder.appendChild(moveUpBtn);
       mobileReorder.appendChild(moveDownBtn);
 
@@ -2316,53 +2268,21 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     render();
   }
 
-  function moveFile(id, direction){
+  function reorderFile(id, targetIndex){
     var index = files.findIndex(function(f){ return f.id === id; });
-    var nextIndex = index + direction;
-    if (index < 0 || nextIndex < 0 || nextIndex >= files.length) return;
-    var moved = files.splice(index, 1)[0];
-    files.splice(nextIndex, 0, moved);
+    if (index < 0 || targetIndex < 0 || targetIndex >= files.length || targetIndex === index) return;
+    var nextFiles = files.slice();
+    var moved = nextFiles.splice(index, 1)[0];
+    nextFiles.splice(Math.min(targetIndex, nextFiles.length), 0, moved);
+    if (nextFiles.length !== files.length) return;
+    files = nextFiles;
     render();
   }
 
-  function beginTouchReorder(event, sourceId){
-    event.preventDefault();
-    event.stopPropagation();
-    var targetId = sourceId;
-
-    function clearTargets(){
-      Array.prototype.forEach.call(grid.querySelectorAll('.thumb.touch-target'), function(el){
-        el.classList.remove('touch-target');
-      });
-    }
-
-    function onPointerMove(moveEvent){
-      moveEvent.preventDefault();
-      var element = document.elementFromPoint(moveEvent.clientX, moveEvent.clientY);
-      var target = element && element.closest ? element.closest('#i_grid .thumb') : null;
-      if (!target || !target.dataset.id) return;
-      targetId = target.dataset.id;
-      clearTargets();
-      target.classList.add('touch-target');
-    }
-
-    function onPointerEnd(){
-      document.removeEventListener('pointermove', onPointerMove);
-      document.removeEventListener('pointerup', onPointerEnd);
-      document.removeEventListener('pointercancel', onPointerEnd);
-      clearTargets();
-      if (targetId === sourceId) return;
-      var sourceIndex = files.findIndex(function(f){ return f.id === sourceId; });
-      var targetIndex = files.findIndex(function(f){ return f.id === targetId; });
-      if (sourceIndex < 0 || targetIndex < 0) return;
-      var moved = files.splice(sourceIndex, 1)[0];
-      files.splice(Math.min(targetIndex, files.length), 0, moved);
-      render();
-    }
-
-    document.addEventListener('pointermove', onPointerMove, { passive: false });
-    document.addEventListener('pointerup', onPointerEnd);
-    document.addEventListener('pointercancel', onPointerEnd);
+  function moveFile(id, direction){
+    var index = files.findIndex(function(f){ return f.id === id; });
+    if (index < 0) return;
+    reorderFile(id, index + direction);
   }
 
   function render(){
@@ -2381,44 +2301,38 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
     files.forEach(function(f, idx){
       var thumb = document.createElement('div');
       thumb.className = 'thumb';
-      thumb.draggable = true;
+      var mobileDragLayout = window.matchMedia && window.matchMedia('(max-width: 860px)').matches;
+      thumb.draggable = !mobileDragLayout;
       thumb.dataset.id = f.id;
 
-      thumb.addEventListener('dragstart', function(){
+      thumb.addEventListener('dragstart', function(e){
+        if (!thumb.draggable){ e.preventDefault(); return; }
         dragSrcId = f.id;
         thumb.classList.add('dragging');
       });
       thumb.addEventListener('dragend', function(){
+        dragSrcId = null;
         thumb.classList.remove('dragging');
       });
       thumb.addEventListener('dragover', function(e){ e.preventDefault(); });
       thumb.addEventListener('drop', function(e){
         e.preventDefault();
         if (!dragSrcId || dragSrcId === f.id) return;
-        var srcIdx = files.findIndex(function(x){ return x.id === dragSrcId; });
         var tgtIdx = files.findIndex(function(x){ return x.id === f.id; });
-        var moved = files.splice(srcIdx, 1)[0];
-        files.splice(tgtIdx, 0, moved);
-        render();
+        var sourceId = dragSrcId;
+        dragSrcId = null;
+        reorderFile(sourceId, tgtIdx);
       });
 
       var frame = document.createElement('div');
       frame.className = 'thumb-frame';
       var img = document.createElement('img');
       img.src = f.dataUrl;
+      img.draggable = false;
       frame.appendChild(img);
 
       var mobileReorder = document.createElement('div');
       mobileReorder.className = 'mobile-reorder';
-
-      var dragHandle = document.createElement('button');
-      dragHandle.type = 'button';
-      dragHandle.className = 'mobile-drag-handle';
-      dragHandle.setAttribute('aria-label', 'Drag to reorder image');
-      dragHandle.textContent = '☰ Drag';
-      dragHandle.addEventListener('pointerdown', function(e){
-        beginTouchReorder(e, f.id);
-      });
 
       var moveBackBtn = document.createElement('button');
       moveBackBtn.type = 'button';
@@ -2442,7 +2356,6 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
         moveFile(f.id, 1);
       });
 
-      mobileReorder.appendChild(dragHandle);
       mobileReorder.appendChild(moveBackBtn);
       mobileReorder.appendChild(moveForwardBtn);
 
