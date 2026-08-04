@@ -94,31 +94,6 @@ Uploaded files stay in the current browser session and are processed on the user
 
 The required JavaScript libraries are included in the HTML file, allowing the main tools to run without loading external library files.
 
-## Running Locally
-
-1. Download or clone the repository.
-2. Make sure the main website file is named `index.html`.
-3. Open `index.html` in a modern browser.
-
-No build command, package installation, or local database is required.
-
-## Deployment
-
-This project is a static website and can be deployed using GitHub Pages, Cloudflare Pages, or another static hosting service.
-
-For Cloudflare Pages with GitHub:
-
-1. Push `index.html` and this `README.md` to a GitHub repository.
-2. In Cloudflare, open **Workers & Pages**.
-3. Create a Pages application and connect the GitHub repository.
-4. Select `main` as the production branch.
-5. Use no framework preset and no build command.
-6. Deploy the repository root as the output directory.
-
-Future pushes to the connected GitHub branch will automatically update the live website.
-
-## Browser Support
-
 For the best experience, use a current version of Chrome, Edge, Firefox, Brave, or Safari. Very large files may take longer to process because conversion depends on the device's available memory and processing power.
 
 ## Project Status
