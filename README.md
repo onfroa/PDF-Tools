@@ -4,10 +4,6 @@ A fast, private, and responsive collection of PDF utilities that runs directly i
 
 **Live website:** [pdf-tools-auy.pages.dev](https://pdf-tools-auy.pages.dev/)
 
-## About
-
-PDF Tools lets users convert, organize, and edit PDF files without installing additional software. File processing happens locally in the browser, so selected images and PDFs are not uploaded to a server.
-
 ## Tools and Functions
 
 ### 1. JPG to PDF
