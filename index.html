@@ -896,10 +896,10 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     <div class="field">
       <span class="field-label">Image quality</span>
-      <div class="seg3">
-        <div class="opt-btn" data-scale="1.5">Standard</div>
-        <div class="opt-btn active" data-scale="2.5">High</div>
-        <div class="opt-btn" data-scale="4">Max</div>
+      <div class="seg3" role="radiogroup" aria-label="Image quality">
+        <button type="button" class="opt-btn active" data-scale="1.5" role="radio" aria-checked="true">Standard</button>
+        <button type="button" class="opt-btn" data-scale="2.5" role="radio" aria-checked="false">High</button>
+        <button type="button" class="opt-btn" data-scale="4" role="radio" aria-checked="false">Max</button>
       </div>
     </div>
 
@@ -938,10 +938,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
     <div class="field">
       <span class="field-label">Add pages</span>
-      <button class="panel-btn" id="e_addBlankBtn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="5" y="3" width="14" height="18" rx="1.5"/><path d="M9 12h6M12 9v6"/></svg>
-        Insert blank page
-      </button>
       <button class="panel-btn" id="e_insertPdfBtn">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21H7a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h7l5 5v11a2 2 0 0 1-2 2Z"/></svg>
         Insert pages from PDF
@@ -1563,13 +1559,14 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
 <script>var __root = document.getElementById('view-pdf-to-jpg');
 
 (function(){
+  var root = document.getElementById('view-pdf-to-jpg');
   var pdfjsLib = window.pdfjsLib;
   var JSZip = window.JSZip;
 
   var jsDoc = null;
   var pages = [];
   var baseName = 'document';
-  var renderScale = 2.5;
+  var renderScale = 1.5;
 
   var fileInput = document.getElementById('j_fileInput');
   var emptyState = document.getElementById('j_emptyState');
@@ -1586,19 +1583,23 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
   });
 
   ['dragover','dragenter'].forEach(function(evt){
-    __root.addEventListener(evt, function(e){ e.preventDefault(); });
+    root.addEventListener(evt, function(e){ e.preventDefault(); });
   });
-  __root.addEventListener('drop', function(e){
+  root.addEventListener('drop', function(e){
     e.preventDefault();
     if (e.dataTransfer && e.dataTransfer.files.length){
       loadPdf(e.dataTransfer.files[0]);
     }
   });
 
-  __root.querySelectorAll('[data-scale]').forEach(function(btn){
+  root.querySelectorAll('[data-scale]').forEach(function(btn){
     btn.addEventListener('click', function(){
-      __root.querySelectorAll('[data-scale]').forEach(function(b){ b.classList.remove('active'); });
+      root.querySelectorAll('[data-scale]').forEach(function(b){
+        b.classList.remove('active');
+        b.setAttribute('aria-checked', 'false');
+      });
       btn.classList.add('active');
+      btn.setAttribute('aria-checked', 'true');
       renderScale = parseFloat(btn.dataset.scale);
       if (jsDoc) renderThumbnails(true);
     });
@@ -1783,7 +1784,6 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
   var countPill = document.getElementById('e_countPill');
   var saveBtn = document.getElementById('e_saveBtn');
   var statusMsg = document.getElementById('e_statusMsg');
-  var addBlankBtn = document.getElementById('e_addBlankBtn');
   var insertPdfBtn = document.getElementById('e_insertPdfBtn');
   var startOverBtn = document.getElementById('e_startOverBtn');
 
@@ -1819,15 +1819,6 @@ window.pdfjsLib.GlobalWorkerOptions.workerSrc = URL.createObjectURL(__workerBlob
         insertPdfFile(ff);
       });
     }
-  });
-
-  addBlankBtn.addEventListener('click', function(){
-    if (pageItems.length === 0){
-      statusMsg.textContent = 'Open a PDF first, or start blank below.';
-      startBlankDocument();
-      return;
-    }
-    addBlankPage();
   });
 
   insertPdfBtn.addEventListener('click', function(){
