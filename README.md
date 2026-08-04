@@ -77,21 +77,6 @@ Extract selected pages from a PDF.
 
 Uploaded files stay in the current browser session and are processed on the user's device. The website does not currently include a database, user accounts, cloud storage, or conversion history. Closing or refreshing the page clears the selected files.
 
-## Technologies Used
-
-- HTML5
-- CSS3
-- JavaScript
-- jsPDF
-- PDF-lib
-- PDF.js
-- JSZip
-- Cloudflare Pages
-
-The required JavaScript libraries are included in the HTML file, allowing the main tools to run without loading external library files.
-
-For the best experience, use a current version of Chrome, Edge, Firefox, Brave, or Safari. Very large files may take longer to process because conversion depends on the device's available memory and processing power.
-
 ## Project Status
 
 The website currently includes five working tools:
