@@ -61,6 +61,15 @@ Extract selected pages from a PDF.
 - Create one PDF containing all selected pages.
 - Save selected pages as separate PDF files in a ZIP archive.
 
+### 6. Compress PDF
+
+Reduce the file size of a PDF.
+
+- Upload and preview the PDF you want to compress.
+- Choose between low, medium, or high compression.
+- Reduce the file size while maintaining readable quality.
+- Download the compressed PDF directly to your device.
+  
 ## Main Features
 
 - Private, browser-based file processing
@@ -86,4 +95,5 @@ The website currently includes five working tools:
 3. Edit PDF
 4. Merge PDF
 5. Split PDF
+6. Compress PDF
 
