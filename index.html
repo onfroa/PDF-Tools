@@ -472,6 +472,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     box-shadow:0 8px 20px rgba(225,75,75,.26),inset 0 1px 0 rgba(255,255,255,.28);
   }
   .topbar-mark svg{width:26px;height:26px;filter:drop-shadow(0 2px 3px rgba(96,10,20,.26));}
+  .topbar-brand{display:flex;align-items:center;gap:14px;min-width:0;}
   .topbar-title{font-size:18px;font-weight:750;letter-spacing:.06em;}
   .topbar-title::after{content:"";display:block;width:22px;height:3px;margin-top:4px;border-radius:999px;background:linear-gradient(90deg,#ff6969,#ffb36b);}
   .back-btn{
@@ -663,13 +664,33 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 
   .status{font-size:12px;color:var(--text-faint);text-align:center;margin-top:12px;min-height:16px;}
   .status.done{color:#4caf72;}
+  #n_statusMsg.info-toast{animation:info-status-toast 3.4s ease forwards;}
+  @keyframes info-status-toast{
+    0%{opacity:0;}
+    12%,72%{opacity:1;}
+    100%{opacity:0;}
+  }
   @media (max-width:1050px){
     .home-grid{grid-template-columns:repeat(4,minmax(0,1fr));}
     .home-card,.home-card:nth-child(5),.home-card:nth-child(6){grid-column:span 2;}
     .home-card:nth-child(7){grid-column:2 / span 2;}
   }
   @media (max-width:700px){
-    .topbar{padding:14px 18px;}
+    .topbar{min-height:64px;padding:10px 16px;gap:10px;}
+    .topbar-mark{width:38px;height:38px;border-radius:11px;}
+    .topbar-mark svg{width:22px;height:22px;}
+    .topbar-title{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:17px;letter-spacing:.025em;}
+    .topbar-title::after{display:none;}
+    .topbar.tool-mode{display:grid;grid-template-columns:40px minmax(0,1fr) 40px;gap:8px;}
+    .topbar.tool-mode::after{content:"";grid-column:3;grid-row:1;width:40px;height:40px;}
+    .topbar.tool-mode .back-btn{grid-column:1;grid-row:1;justify-self:start;width:40px;height:40px;padding:0;justify-content:center;border-radius:10px;}
+    .topbar.tool-mode .back-btn:hover{background:var(--card);}
+    .topbar.tool-mode .back-btn svg{width:20px;height:20px;}
+    .topbar.tool-mode .back-label{display:none;}
+    .topbar.tool-mode .topbar-brand{grid-column:2;grid-row:1;justify-self:center;max-width:100%;gap:9px;}
+    .topbar.tool-mode .topbar-title{max-width:calc(100vw - 176px);text-align:center;}
+    .topbar.tool-mode .topbar-mark{width:34px;height:34px;border-radius:10px;}
+    .topbar.tool-mode .topbar-mark svg{width:20px;height:20px;}
     #view-home{padding:34px 18px 48px;}
     .home-grid{grid-template-columns:1fr;}
     .home-card,.home-card:nth-child(5),.home-card:nth-child(6),.home-card:nth-child(7){grid-column:1;}
@@ -737,6 +758,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     .home-card,.home-card::before,.home-card::after,.home-icon,.home-card h3{transition:none;}
     .home-card:hover{transform:none;}
     .home-card:hover .home-icon{transform:none;}
+    #n_statusMsg.info-toast{animation:none;}
   }
   #view-edit-pdf .rotation-badge{position:absolute;left:7px;bottom:7px;padding:4px 7px;border-radius:999px;background:rgba(18,19,23,.8);color:#fff;font-size:11px;font-weight:700;line-height:1;backdrop-filter:blur(5px);pointer-events:none;}
   #view-edit-pdf [data-edit-rotate]{justify-content:center;line-height:1.3;}
@@ -761,20 +783,22 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 </head>
 <body>
 
-<div class="topbar">
-  <button class="back-btn" id="backBtn">
+<div class="topbar" id="topbar">
+  <button class="back-btn" id="backBtn" aria-label="All tools">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 18l-6-6 6-6"/></svg>
-    All tools
+    <span class="back-label">All tools</span>
   </button>
-  <div class="topbar-mark" aria-hidden="true">
-    <svg viewBox="0 0 32 32" fill="none">
-      <path d="M8.5 4.5h10l5 5v17h-15z" fill="rgba(255,255,255,.98)"/>
-      <path d="M18.5 4.5v5h5" stroke="#d53b48" stroke-width="1.8" stroke-linejoin="round"/>
-      <path d="M12 15h8M12 19h8M12 23h5" stroke="#d53b48" stroke-width="2" stroke-linecap="round"/>
-      <path d="M25.5 2.5v4M23.5 4.5h4" stroke="#ffd9b3" stroke-width="1.7" stroke-linecap="round"/>
-    </svg>
+  <div class="topbar-brand">
+    <div class="topbar-mark" aria-hidden="true">
+      <svg viewBox="0 0 32 32" fill="none">
+        <path d="M8.5 4.5h10l5 5v17h-15z" fill="rgba(255,255,255,.98)"/>
+        <path d="M18.5 4.5v5h5" stroke="#d53b48" stroke-width="1.8" stroke-linejoin="round"/>
+        <path d="M12 15h8M12 19h8M12 23h5" stroke="#d53b48" stroke-width="2" stroke-linecap="round"/>
+        <path d="M25.5 2.5v4M23.5 4.5h4" stroke="#ffd9b3" stroke-width="1.7" stroke-linecap="round"/>
+      </svg>
+    </div>
+    <div class="topbar-title" id="topbarTitle">PDF Tools</div>
   </div>
-  <div class="topbar-title" id="topbarTitle">PDF Tools</div>
 </div>
 
 <div id="view-home">
@@ -3062,6 +3086,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
 (function(){
   var root=document.getElementById('view-pdf-info'),input=document.getElementById('n_fileInput'),empty=document.getElementById('n_emptyState'),table=document.getElementById('n_infoTable'),count=document.getElementById('n_countPill'),status=document.getElementById('n_statusMsg');
   var printAdvice=document.getElementById('n_printAdvice'),paperName=document.getElementById('n_paperName'),paperDetails=document.getElementById('n_paperDetails'),printSetting=document.getElementById('n_printSetting');
+  var statusTimer;
+  function clearStatusTimer(){if(statusTimer){clearTimeout(statusTimer);statusTimer=null;}}
+  function showTemporarySuccess(message){
+    clearStatusTimer();
+    status.className='status done info-toast';
+    status.textContent=message;
+    statusTimer=setTimeout(function(){status.textContent='';status.className='status';statusTimer=null;},3400);
+  }
   function size(n){if(n<1024)return n+' B';if(n<1048576)return(n/1024).toFixed(0)+' KB';return(n/1048576).toFixed(2)+' MB';}
   function add(label,value){var dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value||'Not specified';table.appendChild(dt);table.appendChild(dd);}
   function pdfDate(s){if(!s)return'';var m=String(s).match(/D:(\d{4})(\d{2})(\d{2})/);return m?m[1]+'-'+m[2]+'-'+m[3]:String(s);}
@@ -3091,6 +3123,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     printAdvice.style.display='grid';
   }
   async function load(file){
+    clearStatusTimer();
+    status.className='status';
     printAdvice.style.display='none';
     table.style.display='none';
     status.textContent='Reading document information…';
@@ -3117,8 +3151,8 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       add('Page sizes',Object.keys(papers).length===1?'All pages use the same size':Object.keys(papers).length+' different sizes detected');
       add('PDF version',info.PDFFormatVersion);add('Title',info.Title);add('Author',info.Author);add('Creator',info.Creator);add('Producer',info.Producer);add('Created',pdfDate(info.CreationDate));add('Modified',pdfDate(info.ModDate));
       showPrintAdvice(papers,doc.numPages);
-      empty.style.display='none';table.style.display='grid';count.textContent=doc.numPages+(doc.numPages===1?' page':' pages');status.className='status done';status.textContent='Information loaded.';
-    }catch(err){console.error(err);status.className='status';status.textContent=window.pdfToolsError(err);}
+      empty.style.display='none';table.style.display='grid';count.textContent=doc.numPages+(doc.numPages===1?' page':' pages');showTemporarySuccess('Information loaded.');
+    }catch(err){clearStatusTimer();console.error(err);status.className='status';status.textContent=window.pdfToolsError(err);}
   }
   empty.addEventListener('click',function(){input.click();});document.getElementById('n_openAnother').addEventListener('click',function(){input.click();});input.addEventListener('change',function(e){if(e.target.files[0])load(e.target.files[0]);input.value='';});['dragover','dragenter'].forEach(function(n){root.addEventListener(n,function(e){e.preventDefault();});});root.addEventListener('drop',function(e){e.preventDefault();if(e.dataTransfer.files[0])load(e.dataTransfer.files[0]);});
 })();
@@ -3148,6 +3182,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
   };
   var home = document.getElementById('view-home');
   var backBtn = document.getElementById('backBtn');
+  var topbar = document.getElementById('topbar');
   var topbarTitle = document.getElementById('topbarTitle');
   var allTools = document.querySelectorAll('.tool-view');
 
@@ -3157,6 +3192,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       el.classList.toggle('active', el.id === id);
     });
     backBtn.classList.toggle('visible', id !== 'view-home');
+    topbar.classList.toggle('tool-mode', id !== 'view-home');
     topbarTitle.textContent = TOOL_TITLES[id] || 'PDF Tools';
     window.scrollTo(0, 0);
   }
