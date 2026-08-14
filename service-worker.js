@@ -1,4 +1,4 @@
-const CACHE_NAME = 'pdf-tools-v21';
+const CACHE_NAME = 'pdf-tools-v22';
 const APP_FILES = ['/', '/index.html', '/favicon.svg', '/manifest.webmanifest', '/icon-192.png', '/icon-512.png'];
 
 self.addEventListener('install', event => {

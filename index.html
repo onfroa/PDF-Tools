@@ -968,6 +968,14 @@ https://github.com/nodeca/pako/blob/main/LICENSE
       background:transparent;box-shadow:none;cursor:pointer;
     }
     .tool-view.mobile-empty .empty-state:hover{border-color:transparent;background:transparent;transform:none;box-shadow:none;}
+    .tool-view.mobile-empty .empty-state,
+    .tool-view.mobile-empty .empty-state *{
+      -webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;touch-action:manipulation;
+    }
+    .tool-view.mobile-empty .empty-state:focus{outline:none;}
+    .tool-view.mobile-empty .empty-state:focus-visible .mobile-tool-select{
+      box-shadow:0 12px 26px rgba(116,20,29,.23),0 0 0 4px rgba(225,75,75,.2),inset 0 1px 0 rgba(255,255,255,.14);
+    }
     .tool-view.mobile-empty .empty-state>:not(.mobile-tool-intro){display:none;}
     .tool-view.mobile-empty .panel{display:none;}
     .tool-view.mobile-empty .mobile-file-actions{display:none!important;}
@@ -1081,6 +1089,44 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     #view-edit-pdf .thumb-name,#view-edit-pdf .thumb-page-label{display:block;margin:10px 4px 1px;text-align:center;font-size:13px;}
     #view-edit-pdf .mobile-reorder{display:flex;width:100%;margin-top:10px;}
 
+    /* Larger, calmer file cards with room between every item. */
+    #view-image-to-pdf .workspace,#view-merge-pdf .workspace,
+    #view-pdf-to-jpg .workspace,#view-split-pdf .workspace,
+    #view-compress-pdf .workspace,#view-edit-pdf .workspace{padding-right:12px;padding-left:12px;}
+    #view-image-to-pdf .grid,#view-merge-pdf .grid,
+    #view-pdf-to-jpg .grid,#view-split-pdf .grid,
+    #view-compress-pdf .grid,#view-edit-pdf .grid{
+      width:100%;max-width:430px;margin:0 auto;padding:8px 0 112px;gap:30px;
+    }
+    #view-image-to-pdf .thumb,#view-merge-pdf .thumb,
+    #view-pdf-to-jpg .thumb,#view-split-pdf .thumb,
+    #view-compress-pdf .thumb,#view-edit-pdf .thumb{
+      width:100%;padding:14px;border:1px solid #3b3d44;border-radius:18px;
+      background:linear-gradient(155deg,#202126 0%,#1b1c20 100%);
+      box-shadow:0 16px 34px rgba(0,0,0,.23),inset 0 1px 0 rgba(255,255,255,.025);
+    }
+    #view-image-to-pdf .thumb-frame,#view-merge-pdf .thumb-frame,
+    #view-pdf-to-jpg .thumb-frame,#view-split-pdf .thumb-frame,
+    #view-compress-pdf .thumb-frame,#view-edit-pdf .thumb-frame{
+      width:100%;min-height:0;aspect-ratio:4/5;border:1px solid #303239;border-radius:14px;
+      background:radial-gradient(circle at 50% 42%,#202126 0%,#18191c 72%);
+      box-shadow:inset 0 0 0 1px rgba(255,255,255,.015);
+    }
+    #view-image-to-pdf .thumb-frame img,#view-merge-pdf .thumb-frame img,
+    #view-pdf-to-jpg .thumb-frame img,#view-split-pdf .thumb-frame img,
+    #view-compress-pdf .thumb-frame img,#view-edit-pdf .thumb-frame img{
+      width:100%;height:100%;max-width:none;max-height:none;padding:12px;object-fit:contain;
+    }
+    #view-image-to-pdf .thumb-name,#view-merge-pdf .thumb-name,
+    #view-pdf-to-jpg .thumb-name,#view-pdf-to-jpg .thumb-page-label,
+    #view-split-pdf .thumb-name,#view-split-pdf .thumb-page-label,
+    #view-compress-pdf .thumb-name,#view-compress-pdf .thumb-page-label,
+    #view-edit-pdf .thumb-name,#view-edit-pdf .thumb-page-label{
+      min-height:20px;margin:14px 6px 2px;color:#d8d9dc;font-size:15px;font-weight:520;
+      line-height:1.35;text-align:center;white-space:normal;overflow-wrap:anywhere;
+    }
+    #view-image-to-pdf .mobile-reorder,#view-merge-pdf .mobile-reorder,#view-edit-pdf .mobile-reorder{margin-top:14px;}
+
     /* PDF Information has one clear mobile action instead of settings/FABs. */
     #view-pdf-info .mobile-file-actions{display:none!important;}
     #view-pdf-info .panel{margin:0;padding:0 14px calc(104px + env(safe-area-inset-bottom,0px));border:0;border-radius:0;background:transparent;box-shadow:none;}
@@ -1138,6 +1184,7 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     .home-card:hover{transform:none;box-shadow:none;}
     .home-card:hover .home-icon,.home-card:hover h3{transform:none;}
     .thumb:hover .thumb-frame{transform:none;}
+    .thumb:active .thumb-frame{transform:scale(.992);border-color:#4a4c54;}
   }
 
   @media(prefers-reduced-motion:reduce){
