@@ -478,10 +478,6 @@
   .install-app-btn:active{transform:scale(.97);}
   .install-app-btn svg{width:16px;height:16px;}
   .topbar.tool-mode .install-app-btn{display:none;}
-  .smart-file-summary{display:none;width:max-content;max-width:100%;min-height:30px;align-items:center;justify-content:flex-start;gap:8px;margin:0 0 17px;padding:6px 11px;border:1px solid rgba(255,255,255,.075);border-radius:999px;background:rgba(31,32,36,.72);color:#aeb0b6;font-size:11px;font-weight:600;line-height:1.3;text-align:left;box-shadow:0 7px 18px rgba(0,0,0,.12),inset 0 1px 0 rgba(255,255,255,.025);}
-  .smart-file-summary::before{content:"";width:6px;height:6px;flex:0 0 auto;border-radius:50%;background:#e45159;box-shadow:0 0 0 3px rgba(228,81,89,.12);}
-  .smart-file-summary.has-files{display:inline-flex;}
-  .smart-file-summary.is-large{border-color:rgba(226,150,87,.38);background:rgba(122,77,37,.12);color:#dfb17f;}
   .task-cancel{min-height:38px;margin-top:8px;padding:8px 13px;border:1px solid #45474f;border-radius:10px;background:#24252a;color:#d9dade;font:inherit;font-size:12px;font-weight:700;cursor:pointer;}
   .task-cancel:hover{border-color:#5b5e67;background:#292a30;}
   .task-cancel[hidden]{display:none!important;}
@@ -548,7 +544,6 @@
     .status:not(:empty){position:fixed;z-index:71;left:50%;right:auto;bottom:calc(82px + env(safe-area-inset-bottom,0px));width:auto;max-width:calc(100vw - 32px);margin:0;padding:7px 11px;border:1px solid rgba(255,255,255,.07);border-radius:10px;background:rgba(28,29,33,.92);box-shadow:0 9px 22px rgba(0,0,0,.3);backdrop-filter:blur(10px);transform:translateX(-50%);align-self:center;}
     .status.processing:not(:empty){min-width:0;padding-bottom:12px;}
     .task-cancel{position:fixed;z-index:73;left:50%;bottom:calc(126px + env(safe-area-inset-bottom,0px));width:auto;min-width:112px;margin:0;transform:translateX(-50%);box-shadow:0 10px 24px rgba(0,0,0,.28);}
-    .smart-file-summary{width:max-content;max-width:calc(100% - 16px);min-height:29px;margin:0 auto 17px;padding:6px 10px;font-size:10.5px;}
     .install-app-btn{width:38px;min-height:38px;padding:0;border-radius:11px;}
     .install-app-btn span{display:none;}
     .thumb-remove,.thumb-download{width:32px;height:32px;top:8px;right:8px;opacity:1;}
@@ -1849,90 +1844,6 @@ https://github.com/nodeca/pako/blob/main/LICENSE
     window.addEventListener('appinstalled', function(){ installPrompt = null; installButton.classList.remove('is-visible'); });
   }
 
-  var fileState = new WeakMap();
-  function formatBytes(bytes){
-    if (bytes < 1024) return bytes + ' B';
-    if (bytes < 1048576) return (bytes / 1024).toFixed(bytes < 10240 ? 1 : 0) + ' KB';
-    return (bytes / 1048576).toFixed(bytes < 10485760 ? 1 : 0) + ' MB';
-  }
-  function getSummary(view){ return view && view.querySelector('.smart-file-summary'); }
-  function updateSummary(view){
-    var summary = getSummary(view);
-    if (!summary) return;
-    var files = fileState.get(view) || [];
-    if (!files.length){ summary.className = 'smart-file-summary'; summary.textContent = ''; return; }
-    var total = files.reduce(function(sum, file){ return sum + (file.size || 0); }, 0);
-    var pageCount = 0;
-    var pill = view.querySelector('.count-pill');
-    var pillMatch = pill && pill.textContent.match(/(\d+)\s+pages?/i);
-    if (pillMatch) pageCount = Number(pillMatch[1]);
-    if (!pageCount){
-      view.querySelectorAll('.thumb-name').forEach(function(name){ var match = name.textContent.match(/·\s*(\d+)p\b/i); if (match) pageCount += Number(match[1]); });
-    }
-    var parts = [files.length + (files.length === 1 ? ' file' : ' files'), formatBytes(total)];
-    if (pageCount) parts.push(pageCount + (pageCount === 1 ? ' page' : ' pages'));
-    var isLarge = total > 40 * 1024 * 1024 || files.some(function(file){ return /^image\//.test(file.type || '') && file.size > 15 * 1024 * 1024; });
-    if (isLarge) parts.push('Large selection — processing may take longer');
-    summary.textContent = parts.join(' · ');
-    summary.className = 'smart-file-summary has-files' + (isLarge ? ' is-large' : '');
-  }
-  document.querySelectorAll('.tool-view').forEach(function(view){
-    var workspace = view.querySelector('.workspace');
-    var grid = workspace && workspace.querySelector('.grid');
-    if (!workspace) return;
-    var summary = document.createElement('div');
-    summary.className = 'smart-file-summary';
-    summary.setAttribute('aria-live', 'polite');
-    if (grid) workspace.insertBefore(summary, grid);
-    else workspace.appendChild(summary);
-    var pill = workspace.querySelector('.count-pill');
-    if (pill) new MutationObserver(function(){ updateSummary(view); }).observe(pill, { childList:true,characterData:true,subtree:true });
-    if (grid) new MutationObserver(function(){ updateSummary(view); }).observe(grid, { childList:true,characterData:true,subtree:true });
-  });
-  document.addEventListener('change', function(event){
-    var input = event.target;
-    if (!input || input.type !== 'file' || !input.files || !input.files.length) return;
-    var view = input.closest('.tool-view');
-    if (!view) return;
-    var incoming = Array.prototype.slice.call(input.files);
-    var append = input.multiple && (view.id === 'view-merge-pdf' || view.id === 'view-image-to-pdf' || input.id === 'e_insertInput');
-    var next = append ? (fileState.get(view) || []).concat(incoming) : incoming;
-    fileState.set(view, next);
-    requestAnimationFrame(function(){ updateSummary(view); });
-  }, true);
-  document.addEventListener('drop', function(event){
-    if (!event.dataTransfer || !event.dataTransfer.files.length) return;
-    var view = event.target && event.target.closest ? event.target.closest('.tool-view') : null;
-    if (!view) return;
-    var incoming = Array.prototype.slice.call(event.dataTransfer.files);
-    var append = (view.id === 'view-merge-pdf' || view.id === 'view-image-to-pdf' || (view.id === 'view-edit-pdf' && !view.classList.contains('mobile-empty')));
-    var next = append ? (fileState.get(view) || []).concat(incoming) : incoming;
-    fileState.set(view, next);
-    requestAnimationFrame(function(){ updateSummary(view); });
-  }, true);
-  document.addEventListener('click', function(event){
-    var remove = event.target && event.target.closest ? event.target.closest('.thumb-remove') : null;
-    if (remove){
-      var view = remove.closest('.tool-view');
-      var label = remove.closest('.thumb') && remove.closest('.thumb').querySelector('.thumb-name');
-      var name = label ? label.textContent.split(' · ')[0] : '';
-      if (view && name){
-        var current = (fileState.get(view) || []).slice();
-        var index = current.findIndex(function(file){ return file.name === name; });
-        if (index >= 0) current.splice(index, 1);
-        fileState.set(view, current);
-        setTimeout(function(){ updateSummary(view); }, 190);
-      }
-    }
-    var reset = event.target && event.target.closest ? event.target.closest('.result-next,#e_startOverBtn') : null;
-    if (reset){
-      var resetView = reset.closest('.tool-view');
-      if (resetView){
-        fileState.set(resetView, []);
-        updateSummary(resetView);
-      }
-    }
-  }, true);
 })();
 
 ;
